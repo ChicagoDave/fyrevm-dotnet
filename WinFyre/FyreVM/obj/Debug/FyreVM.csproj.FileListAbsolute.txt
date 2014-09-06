@@ -1,0 +1,7 @@
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\obj\Debug\FyreVM.csprojResolveAssemblyReference.cache
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\bin\Debug\FyreVM.dll
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\bin\Debug\FyreVM.pdb
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\bin\Debug\Newtonsoft.Json.dll
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\bin\Debug\Newtonsoft.Json.xml
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\obj\Debug\FyreVM.dll
+D:\Dropbox\GitHub\FyreVM\WinFyre\FyreVM\obj\Debug\FyreVM.pdb

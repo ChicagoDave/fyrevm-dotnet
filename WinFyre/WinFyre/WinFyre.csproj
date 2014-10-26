@@ -71,6 +71,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <EmbeddedResource Include="Games\ZifmiaSampler.ulx" />
+    <EmbeddedResource Include="Games\FyreVMTester.ulx" />
     <None Include="Games\story.ni" />
     <None Include="Games\Zifmia Support.i7x" />
     <None Include="packages.config" />

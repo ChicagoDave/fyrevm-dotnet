@@ -1,11 +1,10 @@
 Version 3/141026 of FyreVM Support (for Glulx only) by David Cornelson begins here.
 
 [
-  September 6, 2014
+  October 26, 2014
 
 
-  This extension will work with 6G60. It does not work
-  with 6L02 or 6L38.
+  This extension will only work with Inform 7-6L38.
 
   See the Channel IO Layout section to add more dynamic
   channels. Follow the existing code pattern.

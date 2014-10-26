@@ -1,4 +1,4 @@
-Version 2/140906 of FyreVM Support (for Glulx only) by David Cornelson begins here.
+Version 3/141026 of FyreVM Support (for Glulx only) by David Cornelson begins here.
 
 [
 	September 6, 2014
@@ -910,7 +910,8 @@ Include (-
 [ QUIT_THE_GAME_R;
 	if (actor ~= player) rfalse;
 	if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_PROMPT);
-	GL__M(##Quit, 2);
+	if ((actor == player) && (untouchable_silence == false))
+		QUIT_THE_GAME_RM('A');
 	if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_MAIN);
 	if (YesOrNo()~=0) quit;
 ];
@@ -920,11 +921,11 @@ Include (-
 [ RESTART_THE_GAME_R;
 	if (actor ~= player) rfalse;
 	if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_PROMPT);
-	GL__M(##Restart, 1);
+	RESTART_THE_GAME_RM('A');
 	if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_MAIN);
-	if (YesOrNo() ~= 0) {
+	if (YesOrNo()~=0) {
 		@restart;
-		GL__M(##Restart, 2);
+		RESTART_THE_GAME_RM('B'); new_line;
 	}
 ];
 -) instead of "Restart The Game Rule" in "Glulx.i6t".
@@ -945,7 +946,7 @@ Include (-
 		gg_savestr = 0;
 	}
 	.RFailed;
-	GL__M(##Restore, 1);
+	RESTORE_THE_GAME_RM('A'); new_line;
 ];
 -) instead of "Restore The Game Rule" in "Glulx.i6t".
 
@@ -960,7 +961,8 @@ Include (-
 			! now. But first, we have to recover all the Glk objects; the values
 			! in our global variables are all wrong.
 			GGRecoverObjects();
-			return GL__M(##Restore, 2);
+			RESTORE_THE_GAME_RM('B'); new_line;
+			rtrue;
 		}
 	} else {
 		fref = glk_fileref_create_by_prompt($01, $01, 0);
@@ -970,21 +972,20 @@ Include (-
 		if (gg_savestr == 0) jump SFailed;
 		@save gg_savestr res;
 		if (res == -1) {
-			! The player actually just typed "restore". We're going to print
-			!  GL__M(##Restore,2); the Z-Code Inform library does this correctly
-			! now. But first, we have to recover all the Glk objects; the values
-			! in our global variables are all wrong.
+			! The player actually just typed "restore". We first have to recover
+			! all the Glk objects; the values in our global variables are all wrong.
 			GGRecoverObjects();
 			glk_stream_close(gg_savestr, 0); ! stream_close
 			gg_savestr = 0;
-			return GL__M(##Restore, 2);
+			RESTORE_THE_GAME_RM('B'); new_line;
+			rtrue;
 		}
 		glk_stream_close(gg_savestr, 0); ! stream_close
 		gg_savestr = 0;
 	}
-	if (res == 0) return GL__M(##Save, 2);
+	if (res == 0) { SAVE_THE_GAME_RM('B'); new_line; rtrue; }
 	.SFailed;
-	GL__M(##Save, 1);
+	SAVE_THE_GAME_RM('A'); new_line;
 ];
 -) instead of "Save The Game Rule" in "Glulx.i6t".
 
@@ -995,7 +996,7 @@ Include (-
 		print "Transcripting is not available with this interpreter.^";
 		return;
 	}
-	if (gg_scriptstr ~= 0) return GL__M(##ScriptOn, 1);
+	if (gg_scriptstr ~= 0) { SWITCH_TRANSCRIPT_ON_RM('A'); new_line; rtrue; }
 	if (gg_scriptfref == 0) {
 		gg_scriptfref = glk_fileref_create_by_prompt($102, $05, GG_SCRIPTFREF_ROCK);
 		if (gg_scriptfref == 0) jump S1Failed;
@@ -1004,11 +1005,11 @@ Include (-
 	gg_scriptstr = glk_stream_open_file(gg_scriptfref, $05, GG_SCRIPTSTR_ROCK);
 	if (gg_scriptstr == 0) jump S1Failed;
 	glk_window_set_echo_stream(gg_mainwin, gg_scriptstr);
-	GL__M(##ScriptOn, 2);
+	SWITCH_TRANSCRIPT_ON_RM('B'); new_line;
 	VersionSub();
 	return;
 	.S1Failed;
-	GL__M(##ScriptOn, 3);
+	SWITCH_TRANSCRIPT_ON_RM('C'); new_line;
 ];
 -) instead of "Switch Transcript On Rule" in "Glulx.i6t".
 
@@ -1019,8 +1020,8 @@ Include (-
 		print "Transcripting is not available with this interpreter.^";
 		return;
 	}
-	if (gg_scriptstr == 0) return GL__M(##ScriptOff,1);
-	GL__M(##ScriptOff, 2);
+	if (gg_scriptstr == 0) { SWITCH_TRANSCRIPT_OFF_RM('A'); new_line; rtrue; }
+	SWITCH_TRANSCRIPT_OFF_RM('B'); new_line;
 	glk_stream_close(gg_scriptstr, 0); ! stream_close
 	gg_scriptstr = 0;
 ];
@@ -1032,16 +1033,17 @@ Include (-
 [ PrintPrompt i;
 	if (is_fyrevm) {
 		FyreCall(FY_CHANNEL, FYC_PROMPT);
-		PrintText( (+ command prompt +) );
+		TEXT_TY_Say( (+ command prompt +) );
 		FyreCall(FY_CHANNEL, FYC_MAIN);
 	} else {
+		RunTimeProblemShow();
+		ClearRTP();
 		style roman;
 		EnsureBreakBeforePrompt();
-		PrintText( (+ command prompt +) );
+		TEXT_TY_Say( (+ command prompt +) );
 	}
 	ClearBoxedText();
-	ClearParagraphing();
-	enable_rte = true;
+	ClearParagraphing(14);
 ];
 -) instead of "Prompt" in "Printing.i6t".
 
@@ -1103,207 +1105,56 @@ Include (-
 #Endif;
 -) instead of "Status Line" in "Printing.i6t".
 
-Section 3 - IndexedText segment
-
-Include (-
-#ifndef IT_MemoryBufferSize;
-Constant IT_MemoryBufferSize = 512;
-#endif;
-
-Constant IT_Memory_NoBuffers = 2;
-
-#ifndef IT_Memory_NoBuffers;
-Constant IT_Memory_NoBuffers = 1;
-#endif;
-
-#ifdef TARGET_ZCODE;
-Array IT_MemoryBuffer -> IT_MemoryBufferSize*IT_Memory_NoBuffers; ! Where characters are bytes
-#ifnot;
-Array IT_MemoryBuffer --> (IT_MemoryBufferSize+2)*IT_Memory_NoBuffers; ! Where characters are words
-#endif;
-
-Global RawBufferAddress = IT_MemoryBuffer;
-Global RawBufferSize = IT_MemoryBufferSize;
-
-Global IT_cast_nesting;
-
-[ INDEXED_TEXT_TY_Cast tx fromkov indt
-	len i str oldstr offs realloc news buff buffx freebuff results;
-	#ifdef TARGET_ZCODE;
-	buffx = IT_MemoryBufferSize;
-	#ifnot;
-	buffx = (IT_MemoryBufferSize + 2)*WORDSIZE;
-	#endif;
-	
-	buff = RawBufferAddress + IT_cast_nesting*buffx;
-	IT_cast_nesting++;
-	if (IT_cast_nesting > IT_Memory_NoBuffers) {
-		buff = VM_AllocateMemory(buffx); freebuff = buff;
-		if (buff == 0) {
-			BlkAllocationError("ran out with too many simultaneous indexed text conversions");
-			return;
-		}
-	}
-
-	.RetryWithLargerBuffer;
-	if (tx == 0) {
-		#ifdef TARGET_ZCODE;
-		buff-->0 = 1;
-		buff->2 = 0;
-		#ifnot;
-		buff-->0 = 0;
-		#endif;
-		len = 1;
-	} else {
-		#ifdef TARGET_ZCODE;
-		@output_stream 3 buff;
-		#ifnot;
-		if (unicode_gestalt_ok == false) { RunTimeProblem(RTP_NOGLULXUNICODE); jump Failed; }
-		if (is_fyrevm) {
-			OpenOutputBufferUnicode(buff, RawBufferSize);
-		} else {
-			oldstr = glk_stream_get_current();
-			str = glk_stream_open_memory_uni(buff, RawBufferSize, filemode_Write, 0);
-			glk_stream_set_current(str);
-		}
-		#endif;
-
-		@push say__p; @push say__pc;
-		ClearParagraphing();
-		if (fromkov == SNIPPET_TY) print (PrintSnippet) tx;
-		else {
-			if (tx ofclass String) print (string) tx;
-			if (tx ofclass Routine) (tx)();	
-		}
-		@pull say__pc; @pull say__p;
-
-		#ifdef TARGET_ZCODE;
-
-		@output_stream -3;
-		len = buff-->0;
-		if (len > RawBufferSize-1) len = RawBufferSize-1;
-		offs = 2;
-		buff->(len+2) = 0;
-
-		#ifnot; ! i.e. GLULX
-		
-		results = buff + buffx - 2*WORDSIZE;
-		if (is_fyrevm) {
-			CloseOutputBuffer(results);
-		} else {
-			glk_stream_close(str, results);
-			if (oldstr) glk_stream_set_current(oldstr);
-		}
-		len = results-->1;
-		if (len > RawBufferSize-1) {
-			! Glulx had to truncate text output because the buffer ran out:
-			! len is the number of characters which it tried to print
-			news = RawBufferSize;
-			while (news < len) news=news*2;
-			news = news*4; ! Bytes rather than words
-			i = VM_AllocateMemory(news);
-			if (i ~= 0) {
-				if (freebuff) VM_FreeMemory(freebuff);
-				freebuff = i;
-				buff = i;
-				RawBufferSize = news/4;
-				jump RetryWithLargerBuffer;
-			}
-			! Memory allocation refused: all we can do is to truncate the text
-			len = RawBufferSize-1;
-		}
-		offs = 0;
-		buff-->(len) = 0;
-
-		#endif;
-
-		len++;
-	}
-
-	IT_cast_nesting--;
-
-	if (indt == 0) {
-		indt = BlkAllocate(len+1, INDEXED_TEXT_TY, IT_Storage_Flags);
-		if (indt == 0) jump Failed;
-	} else {
-		if (BlkValueSetExtent(indt, len+1, 1) == false) { indt = 0; jump Failed; }
-	}
-
-	#ifdef TARGET_ZCODE;
-	for (i=0:i<=len:i++) BlkValueWrite(indt, i, buff->(i+offs));
-	#ifnot;
-	for (i=0:i<=len:i++) BlkValueWrite(indt, i, buff-->(i+offs));
-	#endif;
-
-	.Failed;
-	if (freebuff) VM_FreeMemory(freebuff);
-
-	return indt;
-];
--) instead of "Casting" in "IndexedText.i6t".
-
-Include (-
-[ INDEXED_TEXT_TY_Say indt  ch i dsize;
-	if ((indt==0) || (BlkType(indt) ~= INDEXED_TEXT_TY)) return;
-	dsize = BlkValueExtent(indt);
-	for (i=0:i<dsize:i++) {
-		ch = BlkValueRead(indt, i);
-		if (ch == 0) break;
-		#ifdef TARGET_ZCODE;
-		print (char) ch;
-		#ifnot; ! TARGET_ZCODE
-		@streamunichar ch;
-		#endif;
-	}
-];
--) instead of "Printing" in "IndexedText.i6t".
-
 Section 4 - Parser segment
 
 Include (-
 [ YesOrNo i j;
-    for (::) {
-        #Ifdef TARGET_ZCODE;
-        if (location == nothing || parent(player) == nothing) read buffer parse;
-        else read buffer parse DrawStatusLine;
-        j = parse->1;
-        #Ifnot; ! TARGET_GLULX;
-        KeyboardPrimitive(buffer, parse);
-        j = parse-->0;
-        #Endif; ! TARGET_
-        if (j) { ! at least one word entered
-            i = parse-->1;
-            if (i == YES1__WD or YES2__WD or YES3__WD) rtrue;
-            if (i == NO1__WD or NO2__WD or NO3__WD) rfalse;
-        }
-        #ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_PROMPT); #endif;
-        L__M(##Quit, 1); print "> ";
-        #ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_MAIN); #endif;
-    }
+	for (::) {
+		#Ifdef TARGET_ZCODE;
+		if (location == nothing || parent(player) == nothing) read buffer parse;
+		else read buffer parse DrawStatusLine;
+		j = parse->1;
+		#Ifnot; ! TARGET_GLULX;
+		if (location ~= nothing && parent(player) ~= nothing) DrawStatusLine();
+		KeyboardPrimitive(buffer, parse);
+		j = parse-->0;
+		#Endif; ! TARGET_
+		if (j) { ! at least one word entered
+			i = parse-->1;
+			if (i == YES1__WD or YES2__WD or YES3__WD) rtrue;
+			if (i == NO1__WD or NO2__WD or NO3__WD) rfalse;
+		}
+		#ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_PROMPT); #endif;
+		YES_OR_NO_QUESTION_INTERNAL_RM('A'); print "> ";
+		#ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_MAIN); #endif;
+	}
 ];
+
+[ YES_OR_NO_QUESTION_INTERNAL_R; ];
+
 -) instead of "Yes/No Questions" in "Parser.i6t".
 
 Section 5 - Death
 
 Include (-
 [ PRINT_OBITUARY_HEADLINE_R;
-    #ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_DEATH); #endif;
-    print "^^    ";
-    VM_Style(ALERT_VMSTY);
-    print "***";
-    if (deadflag == 1) L__M(##Miscellany, 3);
-    if (deadflag == 2) L__M(##Miscellany, 4);
-    if (deadflag ~= 0 or 1 or 2)  {
-        print " ";
-        if (deadflag ofclass Routine) (deadflag)();
-		if (deadflag ofclass String) print (string) deadflag;
-        print " ";
-    }
-    print "***";
-    VM_Style(NORMAL_VMSTY);
-    print "^^"; #Ifndef NO_SCORE; print "^"; #Endif;
-    #ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_MAIN); #endif;
-    rfalse;
+	#ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_DEATH); #endif;
+	print "^^    ";
+	VM_Style(ALERT_VMSTY);
+	print "***";
+	if (deadflag == 1) PRINT_OBITUARY_HEADLINE_RM('A');
+	if (deadflag == 2) PRINT_OBITUARY_HEADLINE_RM('B');
+	if (deadflag == 3) PRINT_OBITUARY_HEADLINE_RM('C');
+	if (deadflag ~= 0 or 1 or 2 or 3)  {
+		print " ";
+		TEXT_TY_Say(deadflag);
+		print " ";
+	}
+	print "***";
+	VM_Style(NORMAL_VMSTY);
+	print "^^"; #Ifndef NO_SCORING; print "^"; #Endif;
+	#ifdef TARGET_GLULX; if (is_fyrevm) FyreCall(FY_CHANNEL, FYC_MAIN); #endif;
+	rfalse;
 ];
 -) instead of "Print Obituary Headline Rule" in "OrderOfPlay.i6t".
 
@@ -1490,3 +1341,4 @@ Additional Channels:
 * Verb -- Contains the list of verbs available.
 
 For more information, screen shots, and examples, please visit "https://github.com/ChicagoDave/FyreVM".
+

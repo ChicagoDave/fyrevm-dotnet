@@ -1,7 +1,7 @@
-Version 3/141026 of FyreVM Support (for Glulx only) by David Cornelson begins here.
+Version 3/141212 of FyreVM Support (for Glulx only) by David Cornelson begins here.
 
 [
-  October 26, 2014
+  December 12, 2014
 
 
   This extension will only work with Inform 7-6L38.
@@ -146,7 +146,7 @@ To decide whether FyreVM is not present: (- (~~is_fyrevm) -).
 
 After starting the virtual machine: follow the register veneer routines rule.
 
-[And these set up an alternative way to print text into an array, since Inform's default way of doing that requires Glk.]
+[And these set up an alternative way to print text into an array, since Inform's default way of doing that requires Glk. FyreVM includes a Glk wrapper which could theoretically support that, but it's only active when the Glk output system is selected.]
 
 Include (-
 Global output_buffer_address;
@@ -1132,6 +1132,82 @@ Include (-
 [ YES_OR_NO_QUESTION_INTERNAL_R; ];
 
 -) instead of "Yes/No Questions" in "Parser.i6t".
+
+Section 5 - Text segment
+
+Include (-
+#ifnot; ! TARGET_ZCODE
+[ TEXT_TY_CastPrimitive to_txt from_snippet from_value
+	len i stream saved_stream news buffer buffer_size memory_to_free results;
+
+	if (to_txt == 0) BlkValueError("no destination for cast");
+
+	buffer_size = (TEXT_TY_BufferSize + 2)*WORDSIZE;
+	
+	RawBufferSize = TEXT_TY_BufferSize;
+	buffer = RawBufferAddress + TEXT_TY_CastPrimitiveNesting*buffer_size;
+	TEXT_TY_CastPrimitiveNesting++;
+	if (TEXT_TY_CastPrimitiveNesting > TEXT_TY_NoBuffers) {
+		buffer = VM_AllocateMemory(buffer_size); memory_to_free = buffer;
+		if (buffer == 0)
+			FlexError("ran out with too many simultaneous text conversions");
+	}
+
+	if (unicode_gestalt_ok) {
+		SuspendRTP();
+		.RetryWithLargerBuffer;
+		if (is_fyrevm) {
+			OpenOutputBufferUnicode(buffer, RawBufferSize);
+		} else {
+			saved_stream = glk_stream_get_current();
+			stream = glk_stream_open_memory_uni(buffer, RawBufferSize, filemode_Write, 0);
+			glk_stream_set_current(stream);
+		}
+
+		@push say__p; @push say__pc;
+		ClearParagraphing(7);
+		if (from_snippet) print (PrintSnippet) from_value;
+		else print (PrintI6Text) from_value;
+		@pull say__pc; @pull say__p;
+
+		results = buffer + buffer_size - 2*WORDSIZE;
+		if (is_fyrevm) {
+			CloseOutputBuffer(results);
+		} else {
+			glk_stream_close(stream, results);
+			if (saved_stream) glk_stream_set_current(saved_stream);
+		}
+		ResumeRTP();
+
+		len = results-->1;
+		if (len > RawBufferSize-1) {
+			! Glulx had to truncate text output because the buffer ran out:
+			! len is the number of characters which it tried to print
+			news = RawBufferSize;
+			while (news < len) news=news*2;
+			i = VM_AllocateMemory(news*WORDSIZE);
+			if (i ~= 0) {
+				if (memory_to_free) VM_FreeMemory(memory_to_free);
+				memory_to_free = i;
+				buffer = i;
+				RawBufferSize = news;
+				buffer_size = (RawBufferSize + 2)*WORDSIZE;
+				jump RetryWithLargerBuffer;
+			}
+			! Memory allocation refused: all we can do is to truncate the text
+			len = RawBufferSize-1;
+		}
+		buffer-->(len) = 0;
+
+		TEXT_TY_CastPrimitiveNesting--;
+		BlkValueMassCopyFromArray(to_txt, buffer, 4, len+1);
+	} else {
+		RunTimeProblem(RTP_NOGLULXUNICODE);
+	}
+	if (memory_to_free) VM_FreeMemory(memory_to_free);
+];
+#endif; 
+-) instead of "Glulx Version" in "Text.i6t".
 
 Section 5 - Death
 
